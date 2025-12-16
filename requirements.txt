@@ -1,0 +1,10 @@
+# Core dependencies for VitnemalOCR
+# Mistral AI SDK for OCR and structured extraction
+mistralai>=1.9.0
+
+# Data validation and modeling
+pydantic>=2.12.0
+pydantic-core>=2.41.0
+
+# Environment variable management
+python-dotenv>=1.2.0
