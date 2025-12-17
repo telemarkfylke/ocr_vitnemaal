@@ -219,20 +219,3 @@ Hvis du får importfeil med `bibliotek`-pakken:
 1. Sørg for at du er i prosjektets rotmappe
 2. Verifiser at det virtuelle miljøet er aktivert
 3. Sjekk at alle avhengigheter er installert: `uv pip list`
-
-## Tekniske detaljer
-
-### Kodekvalitet
-- **Total kodelinjer**: ~301 linjer
-- **Type hints**: 100% dekning
-- **Dokumentasjon**: 100% (alle funksjoner)
-- **Modulær struktur**: 6 bibliotekmoduler + hovedskript
-
-### Ytelse
-- Støtter opptil 8 sider per OCR-forespørsel
-- Base64-enkoding av PDF
-- Effektiv JSON-lagring
-
-## Support
-
-For problemer og spørsmål, vennligst kontakt utviklingsteamet eller opprett en issue i repositoriet.
