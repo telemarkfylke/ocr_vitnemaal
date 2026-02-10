@@ -11,6 +11,12 @@ from typing import Optional
 import base64
 import shutil
 import json
+import sys
+
+# Import fra bibliotek-modulen
+from bibliotek import (
+    archive
+)
 
 class CategoryEnum(str, Enum):
     vitnemål = 'vitnemål',
@@ -121,36 +127,10 @@ def process_document_ocr(
     return response
 
 class OcrResultatData(BaseModel):
-		"""Model for extracted transcript data."""
-		#isVitnemal: bool = Field(description="Indikerer om dokumentet er et vitnemål ved å sjekke at dokumentet har alle disse kriteriene: overskriften vitnemål, stempel fra skolen, karakterer til eleven, informasjon om studieretning og signatur av rektor.")		
-		
-		"""
-		dokumenttype: CategoryEnum = Field(
-			description="Dokumenttypen basert på hovedoverskriften i dokumentet. "
-        "'Vitnemål' = overskriften er nøyaktig 'VITNEMÅL FOR VIDEREGÅENDE OPPLÆRING'. "
-        "'Kompetansebevis' = overskriften er 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING'. "
-        "'Hovedoppgave' = overskriften er 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING'. "
-        "'Annet' = dokumentet har en annen overskrift eller er ikke et offisielt utdanningsdokument."
-		)	
-              
-    """	
+
 		type: str = Field(description="Type dokument")
 
-		"""  CURRENT LAST
-		kategori: CategoryEnum = Field(description="Dokumenttypen basert på hovedoverskriften i dokumentet. "
-        "'vitnemål' = overskriften er nøyaktig 'VITNEMÅL FOR VIDEREGÅENDE OPPLÆRING'. "
-        "'kompetansebevis' = overskriften er 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING'. "
-        "'hovedprosjekt' = Dokumentet innholder BÅDE vitnemålsdata og hovedprosjektdata. "
-        "'annet' = alle andre dokmenter skal havne i denne kategorien")
-		"""
 
-		"""
-		kategori: CategoryEnum = Field(description="Indikerer hvilken kategori dette dokumentet er i, hvis du ikke er HELT sikker så havner det i annet"
-                                  "'hovedprosjekt' = teksten er 'HOVEDPROSJEKT' står oppe i venstre hjørne. Textene 'Fagskolen' 'VITNEMÅL' 'diploma' og 'Høyere yrkesfaglig utdanning' står på høyre side"
-																	"'vitnemål' = dersom dokumentet har alle disse kriteriene: overskriften er nøyaktig 'VITNEMÅL FOR VIDEREGÅENDE OPPLÆRING', stempel fra skolen, karakterer til eleven, informasjon om studieretning og signatur av rektor. "
-        													"'kompetansebevis' = overskriften er 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING'. "                                  
-              										"'annet' = alle andre dokmenter skal havne i denne kategorien")
-              """
 		isVitnemal: bool = Field(
         description="Sett til true KUN hvis dokumentets hovedoverskrift er eksakt 'VITNEMÅL FOR VIDEREGÅENDE OPPLÆRING'. "
         "Sett til false hvis overskriften er 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING' eller noe annet. "
@@ -170,9 +150,6 @@ class OcrResultatData(BaseModel):
 		skole: Optional[str] = Field(description="Navn på utdanningsinstitusjonen")
 		utdanningsprogram: Optional[str] = Field(description="Navn på utdanningsprogrammet")
 
-		#kategori: str = Field(description="Indikerer hvilken kategori dette dokumentet er i blandt disse [vitnemål, kompetansebevis, hovedprosjekt, annet]")
-		#gruppering: Optional[str] = Field(description="Indikerer hvilken gruppering dette dokumentet hadde fått dersom du ikke hadde hatt et fast sett med alternativer å velge i. Ett ord")
-
 class Vitnemåldata(BaseModel):
     """Model for extracted transcript data."""
     isVitnemal: bool = Field(description="Indikerer om dokumentet er et vitnemål ved å sjekke om dokumentet har overskriften vitnemål,stempel fra skolen, karakterer til eleven, informasjon om studieretning og signatur av rektor.")
@@ -183,13 +160,12 @@ class Vitnemåldata(BaseModel):
 
 # APP -------------------------------------------------------------------
 
-inputPath = "./testfiles/input/"
+inputPath = "./MistralOCR/"
 client = create_mistral_client()
 
 
 directory_path = Path(inputPath) 
 
-#for i in range(6):
 for item in directory_path.iterdir():
 
 	print(item.name)
@@ -208,17 +184,6 @@ for item in directory_path.iterdir():
 	ocr_dict = json.loads(ocr_response.model_dump_json())
 	annotation = json.loads(ocr_dict['document_annotation'])
 
-	#print("isVitnemål er  = "+ str(annotation['isVitnemal']))
-      
-	#print("Fant et dokument av kategori = "+ annotation['kategori'])
-       
-	#if annotation['kategori'] != None:
-	#		print("Fant et dokument av gruppering = "+ annotation['gruppering'])
-                        
-	#print("Fant et dokument av type = "+ annotation['type'])
-	#print("Fant et dokument av type = "+ annotation['dokumenttype'] )
-
-
 	print("isVitnemål "+ str(annotation['isVitnemal']))
 	print("isKompetansebevis "+ str(annotation['isKompetansebevis']))
 	print("isHovedprosjekt "+ str(annotation['isHovedprosjekt']))
@@ -231,70 +196,32 @@ for item in directory_path.iterdir():
 										pages=list(range(8)),
 										include_image_base64=False)
 			print("Dokument "+item.name+" flyttet til hovedprosjekt")
-			shutil.move(inputPath+item.name, "./testfiles/hovedprosjekt/"+item.name)
+			print(annotation['navn'], annotation['fodselsnummer'])
+			payload = archive.lag_hovedprosjekt_arkiv_payload(base64Data=base64_pdf, elevnavn=annotation['navn'], ssn=annotation['fodselsnummer'])
+			#print("Resultatet er: " + payload)
+			archive.sendToArchive(payload=payload)
+			shutil.move(inputPath+item.name, "./Hovedprosjekt/"+item.name)
 
-	elif annotation['isKompetansebevis']:
-		vitnemaldata = process_document_ocr(
-									client=client,
-									document_url=document_url,
-									annotation_model=Vitnemåldata,
-									pages=list(range(8)),
-									include_image_base64=False)
-		print("Dokument "+item.name+" flyttet til kompetansebevis")
-		shutil.move(inputPath+item.name, "./testfiles/kompetansebevis/"+item.name)
+	# elif annotation['isKompetansebevis']:
+		# vitnemaldata = process_document_ocr(
+									# client=client,
+									# document_url=document_url,
+									# annotation_model=Vitnemåldata,
+									# pages=list(range(8)),
+									# include_image_base64=False)
+		# print("Dokument "+item.name+" flyttet til kompetansebevis")
+		# shutil.move(inputPath+item.name, "./testfiles/kompetansebevis/"+item.name)
             
-	elif annotation['isVitnemal']:
-			vitnemaldata = process_document_ocr(
-										client=client,
-										document_url=document_url,
-										annotation_model=Vitnemåldata,
-										pages=list(range(8)),
-										include_image_base64=False)
-			print("Dokument "+item.name+" flyttet til vitnemål")
-			shutil.move(inputPath+item.name, "./testfiles/vitnemål/"+item.name)		
+	# elif annotation['isVitnemal']:
+	# 		vitnemaldata = process_document_ocr(
+	# 									client=client,
+	# 									document_url=document_url,
+	# 									annotation_model=Vitnemåldata,
+	# 									pages=list(range(8)),
+	# 									include_image_base64=False)
+	# 		print("Dokument "+item.name+" flyttet til vitnemål")
+	# 		shutil.move(inputPath+item.name, "./Vitnemal/"+item.name)		
 
 	else:
 			print("Dokument "+item.name+" flyttet til feilet")
-			shutil.move(inputPath+item.name, "./testfiles/failed/"+item.name)
-
-	"""
-	if annotation['kategori'] == CategoryEnum.hovedprosjekt:
-			vitnemaldata = process_document_ocr(
-										client=client,
-										document_url=document_url,
-										annotation_model=Vitnemåldata,
-										pages=list(range(8)),
-										include_image_base64=False)
-			print("Dokument "+item.name+" flyttet til hovedprosjekt")
-			shutil.move(inputPath+item.name, "./testfiles/hovedprosjekt/"+item.name)
-
-	elif annotation['kategori'] == CategoryEnum.vitnemål:
-			vitnemaldata = process_document_ocr(
-										client=client,
-										document_url=document_url,
-										annotation_model=Vitnemåldata,
-										pages=list(range(8)),
-										include_image_base64=False)
-			print("Dokument "+item.name+" flyttet til vitnemål")
-			shutil.move(inputPath+item.name, "./testfiles/vitnemål/"+item.name)
-
-	elif annotation['kategori'] == CategoryEnum.kompetansebevis:
-		vitnemaldata = process_document_ocr(
-									client=client,
-									document_url=document_url,
-									annotation_model=Vitnemåldata,
-									pages=list(range(8)),
-									include_image_base64=False)
-		print("Dokument "+item.name+" flyttet til kompetansebevis")
-		shutil.move(inputPath+item.name, "./testfiles/kompetansebevis/"+item.name)
-
-	else:
-			print("Dokument "+item.name+" flyttet til feilet")
-			shutil.move(inputPath+item.name, "./testfiles/failed/"+item.name)
-			
-			# fyllt til unregistered OCR
-	"""                     
-
-"""
-		
-	"""	
+			shutil.move(inputPath+item.name, "./UnregisteredOCR/" + item.name)
