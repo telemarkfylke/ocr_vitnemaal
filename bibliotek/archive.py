@@ -1,4 +1,3 @@
-import json
 from typing import List
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -49,8 +48,7 @@ archive_url = "https://archive-test.api.telemarkfylke.no/api" # test
 recno = "200314"	# test
 #recno = "215093" # prod
 
-token = #Token må legges inn her
-print(token)
+token = "<token her>" # Obs! Token må plasseres her for at ting skal fungere
 
 def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> str:
 	"""
@@ -60,7 +58,9 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 	"""
 
 	# Retrieve the casenumber for the ssn
-	casenr:str = getCaseNumber(ssn)
+	case_response = getCaseNumber(ssn)
+	print("getCaseNumber response:", case_response)
+	casenr:str = case_response['elevmappe']['CaseNumber']
 
 
 	data = HpPayload(
@@ -91,7 +91,7 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 				)
 			],
 			Status= "J",
-			DocumentDate=str(datetime.now()),
+			DocumentDate=datetime.now().isoformat(),
 			UnofficialTitle="Vitnemål - Høyere yrkesfaglig utdanning - " + elevnavn,
 			Title="Vitnemål - Høyere yrkesfaglig utdanning - " + elevnavn,
 			Archive="Elevdokument",
@@ -105,8 +105,7 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 	print(datetime.now())
 	print(str(datetime.now()))
 	data_dict = asdict(data)
-	data_json = json.dumps(data_dict)
-	return data_json
+	return data_dict
 
 
 def sendToArchive(payload:str) -> str:

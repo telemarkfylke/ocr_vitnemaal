@@ -169,7 +169,7 @@ directory_path = Path(inputPath)
 for item in directory_path.iterdir():
 
 	print(item.name)
-	pdf_path = Path(inputPath+item.name)
+	pdf_path = directory_path / item.name
 	base64_pdf = pdf_to_base64(pdf_path)
 	document_url =  f"data:application/pdf;base64,{base64_pdf}"
 
@@ -198,9 +198,13 @@ for item in directory_path.iterdir():
 			print("Dokument "+item.name+" flyttet til hovedprosjekt")
 			print(annotation['navn'], annotation['fodselsnummer'])
 			payload = archive.lag_hovedprosjekt_arkiv_payload(base64Data=base64_pdf, elevnavn=annotation['navn'], ssn=annotation['fodselsnummer'])
-			#print("Resultatet er: " + payload)
-			archive.sendToArchive(payload=payload)
-			shutil.move(inputPath+item.name, "./Hovedprosjekt/"+item.name)
+			import json
+			print("Payload:", json.dumps(payload, indent=2, default=str)[:2000])
+			result = archive.sendToArchive(payload=payload)
+			print("Arkivresultat:", result)
+			dest = Path("Hovedprosjekt")
+			os.makedirs(dest, exist_ok=True)
+			shutil.move(str(directory_path / item.name), str(dest / item.name))
 
 	# elif annotation['isKompetansebevis']:
 		# vitnemaldata = process_document_ocr(
@@ -224,4 +228,6 @@ for item in directory_path.iterdir():
 
 	else:
 			print("Dokument "+item.name+" flyttet til feilet")
-			shutil.move(inputPath+item.name, "./UnregisteredOCR/" + item.name)
+			dest = Path("UnregisteredOCR")
+			os.makedirs(dest, exist_ok=True)
+			shutil.move(str(directory_path / item.name), str(dest / item.name))
