@@ -2,7 +2,10 @@ from typing import List
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import requests
+import msal
 import os
+import dotenv
+
 
 @dataclass
 class HpContact:
@@ -41,14 +44,44 @@ class HpPayload:
 	method:str
 	parameter: HpParameter
 
+dotenv.load_dotenv()
 
-archive_url = "https://archive-test.api.telemarkfylke.no/api" # test
-# archive_url = "https://archive.api.telemarkfylke.no/api" # prod
+enviroment = os.environ.get("ENVIROMENT")
+archive_url = os.environ.get("ARCHIVE_URL")
 
-recno = "200314"	# test
-#recno = "215093" # prod
+def getToken() -> str:
+	"""
+		Get the token for the archive api
+		Returns:
+			token string
+	"""
+	client_id = os.environ.get("APPREG_CLIENT_ID")
+	client_secret = os.environ.get("APPREG_CLIENT_SECRET")
+	tenant_id = os.environ.get("APPREG_TENANT_ID")
+	authority = os.environ.get("MISTRAL_API_KEY")
+	scopes = [os.environ.get("ARCHIVE_SCOPE")]
+	authority = 'https://login.microsoftonline.com/'+tenant_id+'/'
 
-token = "<token her>" # Obs! Token må plasseres her for at ting skal fungere
+	app = msal.ConfidentialClientApplication(
+    client_id=client_id,
+    authority=authority,
+    client_credential=client_secret,
+	)
+	result = None
+	result = app.acquire_token_silent(scopes, account=None)
+
+	if not result:
+		result = app.acquire_token_for_client(scopes)
+
+	if "access_token" in result:
+		print("Access token acquired successfully!")
+		return result['access_token']
+	
+	else:
+		print("Token acquisition failed.")
+
+
+token = getToken()
 
 def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> str:
 	"""
@@ -56,6 +89,11 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 		Returns:
 			payload string
 	"""
+
+	if enviroment=="PROD":
+		recno = "215093"
+	else:
+		recno = "200314"
 
 	# Retrieve the casenumber for the ssn
 	case_response = getCaseNumber(ssn)
@@ -114,7 +152,6 @@ def sendToArchive(payload:str) -> str:
 		Returns:
 			payload string
 	"""
-	print("Hei hei")
 	url = archive_url+"/archive"
 	headers = {"Authorization": "Bearer "+token}
 	response = requests.post(url, json=payload, headers=headers)
