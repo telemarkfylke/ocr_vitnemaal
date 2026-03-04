@@ -15,7 +15,8 @@ import sys
 
 # Import fra bibliotek-modulen
 from bibliotek import (
-    archive
+    archive,
+    freg
 )
 
 class CategoryEnum(str, Enum):
@@ -27,6 +28,12 @@ class CategoryEnum(str, Enum):
 def load_environment() -> None:
     """Load environment variables from .env file."""
     dotenv.load_dotenv()
+
+def move_to_unregistered(item:Path) -> None:
+		print("Dokument "+item.name+" flyttet til feilet")
+		dest = Path("UnregisteredOCR")
+		os.makedirs(dest, exist_ok=True)
+		shutil.move(str(directory_path / item.name), str(dest / item.name))
 
 def get_api_key() -> str:
     """
@@ -188,7 +195,16 @@ for item in directory_path.iterdir():
 	print("isKompetansebevis "+ str(annotation['isKompetansebevis']))
 	print("isHovedprosjekt "+ str(annotation['isHovedprosjekt']))
 
-	if annotation['isHovedprosjekt']:
+	
+	if not annotation['fodselsnummer'] or not annotation['navn']:
+		print("Ingen fødselsnummer/navn funnet")
+		move_to_unregistered(item)
+  
+	elif not freg.checkSsn(ssn=annotation['fodselsnummer'], navn=annotation['navn']):
+		print("Ingen fødselsnummer matcher ikke navn")
+		move_to_unregistered(item)
+              
+	elif annotation['isHovedprosjekt']:
 			vitnemaldata = process_document_ocr(
 										client=client,
 										document_url=document_url,
@@ -227,7 +243,4 @@ for item in directory_path.iterdir():
 	# 		shutil.move(inputPath+item.name, "./Vitnemal/"+item.name)		
 
 	else:
-			print("Dokument "+item.name+" flyttet til feilet")
-			dest = Path("UnregisteredOCR")
-			os.makedirs(dest, exist_ok=True)
-			shutil.move(str(directory_path / item.name), str(dest / item.name))
+    		move_to_unregistered(item)

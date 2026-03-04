@@ -5,6 +5,7 @@ import requests
 import msal
 import os
 import dotenv
+import tokens
 
 
 @dataclass
@@ -49,39 +50,7 @@ dotenv.load_dotenv()
 enviroment = os.environ.get("ENVIROMENT")
 archive_url = os.environ.get("ARCHIVE_URL")
 
-def getToken() -> str:
-	"""
-		Get the token for the archive api
-		Returns:
-			token string
-	"""
-	client_id = os.environ.get("APPREG_CLIENT_ID")
-	client_secret = os.environ.get("APPREG_CLIENT_SECRET")
-	tenant_id = os.environ.get("APPREG_TENANT_ID")
-	authority = os.environ.get("MISTRAL_API_KEY")
-	scopes = [os.environ.get("ARCHIVE_SCOPE")]
-	authority = 'https://login.microsoftonline.com/'+tenant_id+'/'
-
-	app = msal.ConfidentialClientApplication(
-    client_id=client_id,
-    authority=authority,
-    client_credential=client_secret,
-	)
-	result = None
-	result = app.acquire_token_silent(scopes, account=None)
-
-	if not result:
-		result = app.acquire_token_for_client(scopes)
-
-	if "access_token" in result:
-		print("Access token acquired successfully!")
-		return result['access_token']
-	
-	else:
-		print("Token acquisition failed.")
-
-
-token = getToken()
+token = tokens.fetchToken(scope = os.environ.get("ARCHIVE_SCOPE"))
 
 def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> str:
 	"""
