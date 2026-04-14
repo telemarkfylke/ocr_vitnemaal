@@ -2,7 +2,7 @@ import requests
 import msal
 import os
 import dotenv
-import tokens
+from . import tokens
 
 dotenv.load_dotenv()
 
@@ -15,14 +15,21 @@ def checkSsn(ssn:str, navn:str) -> bool:
 		Returns:
 			payload string
 	"""
-	payload= { "ssn":ssn }
-	headers = {"Authorization": "Bearer "+token}
-	response = requests.post(freg_url, json=payload, headers=headers)
-	res =  response.json()
+	try:
+		valid_ssn = ssn.replace(" ", "")
+		if len(valid_ssn) != 11:
+			return False
 
-	if res['status'] is None:
-		return False
+		payload= { "ssn": valid_ssn }
+		headers = {"Authorization": "Bearer "+token}
+		response = requests.post(freg_url, json=payload, headers=headers)
+		res =  response.json()
+
+		if res['status'] is None:
+			return False
 	
-	return res['fulltnavn'] == navn
-
+		return res['fulltnavn'] == navn
+	except:
+		print("exept")
+		return False
 

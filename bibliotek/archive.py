@@ -5,7 +5,7 @@ import requests
 import msal
 import os
 import dotenv
-import tokens
+from . import tokens
 
 
 @dataclass
