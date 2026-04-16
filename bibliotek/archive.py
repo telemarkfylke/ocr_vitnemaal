@@ -74,7 +74,7 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 		service = "DocumentService",
 		method = "CreateDocument",
 		parameter = HpParameter(
-			Category="Dokument inn",
+			Category="Dokument ut",
 			Contacts=[
 				HpContact(
 					ReferenceNumber="recno:"+recno,
