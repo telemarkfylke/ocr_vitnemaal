@@ -1,17 +1,24 @@
-from enum import Enum, IntEnum
 from pathlib import Path
-from mistralai import Mistral
-import os
-import dotenv
-from typing import Any, Type
 from mistralai import Mistral
 from mistralai.extra import response_format_from_pydantic_model
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Any, Optional, Type
+import os
+import dotenv
 import base64
 import shutil
 import json
-import sys
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[
+        logging.FileHandler("ocr_logfile.txt", encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
+)
+logger = logging.getLogger(__name__)
 
 # Import fra bibliotek-modulen
 from bibliotek import (
@@ -19,21 +26,15 @@ from bibliotek import (
     freg
 )
 
-class CategoryEnum(str, Enum):
-    vitnemål = 'vitnemål',
-    kompetansebevis = 'kompetansebevis',
-    hovedprosjekt = 'hovedprosjekt',
-    annet = 'annet'
-
 def load_environment() -> None:
     """Load environment variables from .env file."""
     dotenv.load_dotenv()
 
-def move_to_unregistered(item:Path) -> None:
-		print("Dokument "+item.name+" flyttet til feilet")
-		dest = Path("UnregisteredOCR")
-		os.makedirs(dest, exist_ok=True)
-		shutil.move(str(directory_path / item.name), str(dest / item.name))
+def move_to_unregistered(item: Path, source_dir: Path) -> None:
+	logger.warning(f"Dokument {item.name} flyttet til feilet")
+	dest = Path("UnregisteredOCR")
+	os.makedirs(dest, exist_ok=True)
+	shutil.move(str(source_dir / item.name), str(dest / item.name))
 
 def get_api_key() -> str:
     """
@@ -135,35 +136,25 @@ def process_document_ocr(
 
 class OcrResultatData(BaseModel):
 
-		type: str = Field(description="Type dokument")
-
-
 		isVitnemal: bool = Field(
-        description="Sett til true KUN hvis dokumentets hovedoverskrift er eksakt 'VITNEMÅL FOR VIDEREGÅENDE OPPLÆRING'. "
-        "Sett til false hvis overskriften er 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING' eller noe annet. "
-        "VIKTIG: Et kompetansebevis er IKKE et vitnemål, selv om det har karakterer og skoleinformasjon."
+        description="Sett til true KUN hvis dokumentet har hovedoverskriften 'VITNEMÅL FOR VIDEREGÅENDE OPPLÆRING'. "
+        "Sett alltid til false hvis overskriften inneholder ordet 'KOMPETANSEBEVIS'. "
+        "Et kompetansebevis er aldri et vitnemål, selv om det inneholder karakterer og skoleinformasjon."
     )
-              
-		isKompetansebevis: bool = Field(
-        description="Sett til true KUN hvis dokumentets hovedoverskrift er eksakt 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING'"
-    )
-              
-		isHovedprosjekt: bool = Field(
-        description="Sett til true hvis dokumentet innholder teksten 'Høyere yrkesfaglig utdanning' og teksten 'HOVEDPROSJEKT' står øverst på venstre side"
-    )
-              
-		navn: Optional[str] = Field(description="Fullt navn på studenten")
-		fodselsnummer: Optional[str] = Field(default=None, description="Fødselsnummer eller D-nummer")
-		skole: Optional[str] = Field(description="Navn på utdanningsinstitusjonen")
-		utdanningsprogram: Optional[str] = Field(description="Navn på utdanningsprogrammet")
 
-class Vitnemåldata(BaseModel):
-    """Model for extracted transcript data."""
-    isVitnemal: bool = Field(description="Indikerer om dokumentet er et vitnemål ved å sjekke om dokumentet har overskriften vitnemål,stempel fra skolen, karakterer til eleven, informasjon om studieretning og signatur av rektor.")
-    navn: str = Field(description="Fullt navn på studenten")
-    fodselsnummer: Optional[str] = Field(default=None, description="Fødselsnummer eller D-nummer")
-    skole: str = Field(description="Navn på utdanningsinstitusjonen")
-    utdanningsprogram: str = Field(description="Navn på utdanningsprogrammet")
+		isKompetansebevis: bool = Field(
+        description="Sett til true KUN hvis dokumentet har hovedoverskriften 'KOMPETANSEBEVIS FOR VIDEREGÅENDE OPPLÆRING'. "
+        "Sett alltid til false hvis overskriften inneholder ordet 'VITNEMÅL'."
+    )
+
+		isHovedprosjekt: bool = Field(
+        description="Sett til true KUN hvis dokumentet inneholder både teksten 'Høyere yrkesfaglig utdanning' og teksten 'HOVEDPROSJEKT'."
+    )
+
+		navn: Optional[str] = Field(description="Fullt navn på studenten slik det står i dokumentet.")
+		fodselsnummer: Optional[str] = Field(default=None, description="Fødselsnummer eller D-nummer (11 siffer). Returner kun sifrene uten mellomrom eller bindestreker.")
+		skole: Optional[str] = Field(description="Fullt navn på utdanningsinstitusjonen slik det står i dokumentet.")
+		utdanningsprogram: Optional[str] = Field(description="Navn på utdanningsprogrammet eller studieretningen slik det står i dokumentet.")
 
 # APP -------------------------------------------------------------------
 
@@ -175,8 +166,20 @@ directory_path = Path(inputPath)
 
 for item in directory_path.iterdir():
 
-	print(item.name)
+	if item.suffix.lower() != '.pdf':
+		logger.info(f"Hopper over {item.name} (ikke PDF)")
+		continue
+
 	pdf_path = directory_path / item.name
+
+	with open(pdf_path, 'rb') as f:
+		header = f.read(4)
+	if header != b'%PDF':
+		logger.warning(f"Hopper over {item.name} (ugyldig PDF-fil)")
+		move_to_unregistered(item, directory_path)
+		continue
+
+	logger.info(f"Behandler: {item.name}")
 	base64_pdf = pdf_to_base64(pdf_path)
 	document_url =  f"data:application/pdf;base64,{base64_pdf}"
 
@@ -187,40 +190,35 @@ for item in directory_path.iterdir():
 			pages=list(range(8)),
 			include_image_base64=False
 	)
-      
+
 	ocr_dict = json.loads(ocr_response.model_dump_json())
 	annotation = json.loads(ocr_dict['document_annotation'])
 
-	print("isVitnemål "+ str(annotation['isVitnemal']))
-	print("isKompetansebevis "+ str(annotation['isKompetansebevis']))
-	print("isHovedprosjekt "+ str(annotation['isHovedprosjekt']))
+	logger.info(f"isVitnemål: {annotation['isVitnemal']}")
+	logger.info(f"isKompetansebevis: {annotation['isKompetansebevis']}")
+	logger.info(f"isHovedprosjekt: {annotation['isHovedprosjekt']}")
 
-	
+	if annotation['isVitnemal'] and annotation['isKompetansebevis']:
+		logger.warning(f"{item.name}: OCR returnerte både isVitnemal og isKompetansebevis som true — mulig klassifiseringsfeil")
+
 	if not annotation['fodselsnummer'] or not annotation['navn']:
-		print("Ingen fødselsnummer/navn funnet")
-		move_to_unregistered(item)
-  
+		logger.warning(f"{item.name}: Ingen fødselsnummer/navn funnet")
+		move_to_unregistered(item, directory_path)
+
 	elif not freg.checkSsn(ssn=annotation['fodselsnummer'], navn=annotation['navn']):
-		print("Ingen fødselsnummer matcher ikke navn")
-		move_to_unregistered(item)
-              
+		logger.warning(f"{item.name}: Fødselsnummer matcher ikke navn i FREG")
+		move_to_unregistered(item, directory_path)
+
 	elif annotation['isHovedprosjekt']:
-			vitnemaldata = process_document_ocr(
-										client=client,
-										document_url=document_url,
-										annotation_model=Vitnemåldata,
-										pages=list(range(8)),
-										include_image_base64=False)
-			print("Dokument "+item.name+" flyttet til hovedprosjekt")
-			print(annotation['navn'], annotation['fodselsnummer'])
+			logger.info(f"Dokument {item.name} er hovedprosjekt — arkiverer")
+			logger.info(f"Navn: {annotation['navn']}, Fnr: {annotation['fodselsnummer']}")
 			payload = archive.lag_hovedprosjekt_arkiv_payload(base64Data=base64_pdf, elevnavn=annotation['navn'], ssn=annotation['fodselsnummer'])
-			import json
-			print("Payload:", json.dumps(payload, indent=2, default=str)[:2000])
 			result = archive.sendToArchive(payload=payload)
-			print("Arkivresultat:", result)
+			logger.info(f"Arkivresultat: {result}")
 			dest = Path("Hovedprosjekt")
 			os.makedirs(dest, exist_ok=True)
 			shutil.move(str(directory_path / item.name), str(dest / item.name))
+			logger.info(f"Dokument {item.name} flyttet til Hovedprosjekt")
 
 	# elif annotation['isKompetansebevis']:
 		# vitnemaldata = process_document_ocr(
@@ -243,4 +241,5 @@ for item in directory_path.iterdir():
 	# 		shutil.move(inputPath+item.name, "./Vitnemal/"+item.name)		
 
 	else:
-    		move_to_unregistered(item)
+		logger.warning(f"{item.name}: Ukjent dokumenttype — flytter til feilet")
+		move_to_unregistered(item, directory_path)

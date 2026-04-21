@@ -1,13 +1,13 @@
-
 import msal
 import os
 import dotenv
+import logging
 
 dotenv.load_dotenv()
 
-freg_url = os.environ.get("FREG_URL")
+logger = logging.getLogger(__name__)
 
-def fetchToken(scope:str) -> str:
+def fetchToken(scope: str) -> str:
 	"""
 		Get the token for the freg api
 		Returns:
@@ -17,22 +17,21 @@ def fetchToken(scope:str) -> str:
 	client_secret = os.environ.get("APPREG_CLIENT_SECRET")
 	tenant_id = os.environ.get("APPREG_TENANT_ID")
 	scopes = [scope]
-	authority = 'https://login.microsoftonline.com/'+str(tenant_id)+'/'
+	authority = f"https://login.microsoftonline.com/{tenant_id}/"
 
 	app = msal.ConfidentialClientApplication(
-    client_id=client_id,
-    authority=authority,
-    client_credential=client_secret,
+		client_id=client_id,
+		authority=authority,
+		client_credential=client_secret,
 	)
-	result = None
 	result = app.acquire_token_silent(scopes, account=None)
 
 	if not result:
 		result = app.acquire_token_for_client(scopes)
 
 	if "access_token" in result:
-		print("Access token acquired successfully!")
+		logger.info(f"Token hentet OK for scope: {scope}")
 		return result['access_token']
-	
 	else:
-		print("Token acquisition failed.")
+		logger.error(f"Token-henting feilet for scope: {scope} — feil: {result.get('error_description', 'ukjent')}")
+		return None

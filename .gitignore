@@ -124,6 +124,7 @@ cython_debug/
 *.pdf
 *.log
 *.tmp
+ocr_logfile.txt
 
 # Files for testing
 testfiles/

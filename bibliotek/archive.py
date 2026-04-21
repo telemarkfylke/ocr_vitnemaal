@@ -47,7 +47,7 @@ class HpPayload:
 
 dotenv.load_dotenv()
 
-enviroment = os.environ.get("ENVIROMENT")
+environment = os.environ.get("ENVIRONMENT")
 archive_url = os.environ.get("ARCHIVE_URL")
 
 token = tokens.fetchToken(scope = os.environ.get("ARCHIVE_SCOPE"))
@@ -59,14 +59,13 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 			payload string
 	"""
 
-	if enviroment=="PROD":
+	if environment=="PROD":
 		recno = "215093"
 	else:
 		recno = "200314"
 
 	# Retrieve the casenumber for the ssn
 	case_response = getCaseNumber(ssn)
-	print("getCaseNumber response:", case_response)
 	casenr:str = case_response['elevmappe']['CaseNumber']
 
 
@@ -109,8 +108,6 @@ def lag_hovedprosjekt_arkiv_payload(base64Data:str, elevnavn:str, ssn:str) -> st
 			AccessGroup="Studentmapper"
 		)		
 	)
-	print(datetime.now())
-	print(str(datetime.now()))
 	data_dict = asdict(data)
 	return data_dict
 
@@ -121,8 +118,8 @@ def sendToArchive(payload:str) -> str:
 		Returns:
 			payload string
 	"""
-	url = archive_url+"/archive"
-	headers = {"Authorization": "Bearer "+token}
+	url = f"{archive_url}/archive"
+	headers = {"Authorization": f"Bearer {token}"}
 	response = requests.post(url, json=payload, headers=headers)
 	return response.json()
 
@@ -133,8 +130,8 @@ def getCaseNumber(ssn:str) -> str:
 		Returns:
 			payload string
 	"""
-	url = archive_url+"/SyncElevmappe"
-	headers = {"Authorization": "Bearer "+ token}
+	url = f"{archive_url}/SyncElevmappe"
+	headers = {"Authorization": f"Bearer {token}"}
 	payload = { "ssn":ssn, "isStudentmappe": True }
 	response = requests.post(url, json=payload, headers=headers)
 	return response.json()

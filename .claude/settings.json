@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/pip install *)",
+      "Bash(/Users/fuzzbin/Documents/GitHub_TFK/ocr_vitnemaal/.venv/bin/pip install *)",
+      "Bash(/Users/fuzzbin/Documents/GitHub_TFK/ocr_vitnemaal/.venv/bin/python -m pip install msal)",
+      "Bash(python3 -m pip install --target /Users/fuzzbin/Documents/GitHub_TFK/ocr_vitnemaal/.venv/lib/python3.12/site-packages msal)",
+      "Bash(/usr/bin/python3 -m pip install --target /Users/fuzzbin/Documents/GitHub_TFK/ocr_vitnemaal/.venv/lib/python3.12/site-packages msal)",
+      "Bash(python3 -c \"import ast; import sys; content = open\\('ocrhandler.py'\\).read\\(\\); tree = ast.parse\\(content\\); imports = [node for node in ast.walk\\(tree\\) if isinstance\\(node, \\(ast.Import, ast.ImportFrom\\)\\)]; [print\\(f'{node.lineno}: {ast.unparse\\(node\\)}'\\) for node in imports]\")",
+      "Bash(python3 /tmp/analyze.py)",
+      "Bash(python3 /tmp/check_files.py)",
+      "Bash(sed -n '1,10p' /Users/fuzzbin/Documents/GitHub_TFK/ocr_vitnemaal/bibliotek/tokens.py)",
+      "Bash(sed -n '36,38p' /Users/fuzzbin/Documents/GitHub_TFK/ocr_vitnemaal/bibliotek/tokens.py)",
+      "Bash(awk '{print $9}')"
+    ]
+  }
+}
