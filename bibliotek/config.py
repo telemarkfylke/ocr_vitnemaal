@@ -43,3 +43,19 @@ def create_mistral_client(api_key: str | None = None) -> Mistral:
         api_key = get_api_key()
 
     return Mistral(api_key=api_key)
+
+
+def get_docling_url() -> str:
+    """
+    Get the Docling OCR service URL from environment variables.
+
+    Returns:
+        Docling OCR endpoint URL string
+
+    Raises:
+        ValueError: If DOCLING_URL is not found in environment variables
+    """
+    docling_url = os.environ.get("DOCLING_URL")
+    if not docling_url:
+        raise ValueError("DOCLING_URL ikke funnet i miljøvariabler")
+    return docling_url

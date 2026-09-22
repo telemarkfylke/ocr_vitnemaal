@@ -133,3 +133,7 @@ testfiles/
 # uv.lock is kept for dependency tracking
 poetry.lock
 Pipfile.lock
+
+Hovedprosjekt
+MistralOCR
+UnregisteredOCR
