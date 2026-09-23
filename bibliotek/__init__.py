@@ -34,6 +34,12 @@ from bibliotek.models import (
     OcrResultatData,
 )
 
+# Document pre-classification (logo/header detection before OCR)
+from bibliotek.document_classifier import (
+    classify_image,
+    classify_pdf_base64,
+)
+
 __all__ = [
     # Configuration
     "create_mistral_client",
@@ -49,4 +55,7 @@ __all__ = [
     # Models
     "Vitnemaldata",
     "OcrResultatData",
+    # Document pre-classification
+    "classify_image",
+    "classify_pdf_base64",
 ]

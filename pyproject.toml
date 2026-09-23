@@ -14,6 +14,8 @@ dependencies = [
     "pydantic-core>=2.41.0",
     "python-dotenv>=1.2.0",
     "requests>=2.32.0",
+    "ultralytics>=8.4.0",
+    "pymupdf>=1.24.0",
 ]
 
 [project.optional-dependencies]
