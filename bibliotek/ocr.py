@@ -11,7 +11,7 @@ from mistralai import Mistral
 from mistralai.extra import response_format_from_pydantic_model
 from pydantic import BaseModel
 
-from .config import get_docling_url, load_environment
+from .config import get_docling_url, load_environment, get_docling_api_key
 
 
 def process_document_ocr(
@@ -108,9 +108,12 @@ def process_document_ocr_docling(
     Returns:
         Parsed JSON response from the Docling OCR API
     """
-    if base_url is None:
-        load_environment()
+    load_environment()
+
+    if base_url is None:        
         base_url = get_docling_url()
+        
+    api_key = get_docling_api_key()
 
     schema = _annotation_model_to_docling_schema(annotation_model)
     path = Path(file_path)
@@ -118,6 +121,7 @@ def process_document_ocr_docling(
     with open(path, "rb") as f:
         response = requests.post(
             base_url,
+            headers={"x-functions-key":api_key },
             params={"max_pages": max_pages},
             files={"file": (path.name, f, "application/pdf")},
             data={"schema": json.dumps(schema)},

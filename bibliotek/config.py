@@ -44,6 +44,12 @@ def create_mistral_client(api_key: str | None = None) -> Mistral:
 
     return Mistral(api_key=api_key)
 
+def get_docling_api_key() -> str: 
+    docling_api_key = os.environ.get("DOCLING_API_KEY")
+    if not docling_api_key:
+        raise ValueError("DOCLING_API_KEY ikke funnet i miljøvariabler")
+    return docling_api_key
+
 
 def get_docling_url() -> str:
     """
